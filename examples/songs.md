@@ -1,10 +1,7 @@
-# Standardinator
+# Songs
+This examples provides a basic overview of the intended functionality of this application
 
-Golang package for converting streams of data into a standardized formats using [JSONPath](https://goessner.net/articles/JsonPath/)
-
-## Target Functionality
-
-#### Input data
+## Input data
 ```json
 [
     {
@@ -29,7 +26,8 @@ Golang package for converting streams of data into a standardized formats using 
     }
 ]
 ```
-#### Configuration
+
+## Configuration
 ```json
 {
     "parser": "JSON",
