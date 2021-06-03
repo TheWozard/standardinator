@@ -1,0 +1,58 @@
+# Standardinator
+
+Golang package for converting streams of data into a standardized formats using [JSONPath](https://goessner.net/articles/JsonPath/)
+
+## Target Functionality
+
+#### Input data
+```json
+[
+    {
+        "album": "Abbey Road",
+        "cover_art": "<url>",
+        "songs": [
+            {
+                "name":"Come Together",
+                "link": "<url>",
+                "details": {
+                    "duration":"4:19"
+                }
+            },
+            {
+                "name":"Something",
+                "link": "<url>",
+                "details": {
+                    "duration":"3:27"
+                }
+            }
+        ]
+    }
+]
+```
+#### Configuration
+```json
+{
+    "parser": "JSON",
+    "outputs": [
+        {
+            "name":"Song",
+            "for": "$[*].songs[*]",
+            "target": {
+                "song": {
+                    "name": "@.name",
+                },
+                "album": "@Album", // Will only include the album currently available in the tree
+                "duration": "@.details.duration"
+            }
+        }
+        {
+            "name":"Album",
+            "for": "$[*]",
+            "omit": true, // excludes it from the output, just used to create tree data
+            "target": {
+                "name": "@.album",
+            }
+        }
+    ]
+}
+```
