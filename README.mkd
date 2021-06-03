@@ -41,14 +41,14 @@ Golang package for converting streams of data into a standardized formats using 
                 "song": {
                     "name": "@.name",
                 },
-                "album": "@Album", // Will only include the album currently available in the tree
+                "album": "@Album",
                 "duration": "@.details.duration"
             }
         }
         {
             "name":"Album",
             "for": "$[*]",
-            "omit": true, // excludes it from the output, just used to create tree data
+            "omit": true,
             "target": {
                 "name": "@.album",
             }
