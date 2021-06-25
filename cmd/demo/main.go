@@ -1,7 +1,8 @@
 package main
 
 import (
-	"encoding/json"
+	"TheWozard/standardinator/pkg/config"
+	"TheWozard/standardinator/pkg/core"
 	"fmt"
 	"io"
 	"os"
@@ -13,31 +14,25 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-
 	defer file.Close()
-	decoder := json.NewDecoder(file)
 
-	token, err := decoder.Token()
-	if err != nil && err != io.EOF {
+	tokenizer, err := config.NewTokenizer("json", file)
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	for token != nil {
-		fmt.Println(token)
-		token, err = decoder.Token()
-		if err != nil && err != io.EOF {
+
+	iter := core.NewIterator(tokenizer)
+
+	for {
+		result, err := iter.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			fmt.Println(err)
 			return
 		}
-		switch t := token.(type) {
-		case json.Delim:
-			if t == '{' || t == '[' {
-				fmt.Println("OPEN")
-			} else {
-				fmt.Println("CLOSE")
-			}
-		default:
-			fmt.Println(t)
-		}
+		fmt.Println(result)
 	}
 }
