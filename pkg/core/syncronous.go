@@ -1,7 +1,7 @@
 package core
 
 import (
-	"TheWozard/standardinator/pkg/output"
+	"TheWozard/standardinator/pkg/manager"
 	"TheWozard/standardinator/pkg/token"
 	"fmt"
 	"io"
@@ -11,13 +11,13 @@ import (
 func NewIterator(reader token.Reader) Iterator {
 	return &synchronous{
 		reader:  reader,
-		manager: output.NewManager(),
+		manager: manager.NewManager(),
 	}
 }
 
 type synchronous struct {
 	reader  token.Reader
-	manager output.Manager
+	manager manager.Manager
 
 	closed bool
 	child  *synchronous
@@ -29,7 +29,7 @@ func (s *synchronous) HasNext() bool {
 	return s.manager.HasResult() || !s.closed
 }
 
-func (s *synchronous) Next() (output.Result, error) {
+func (s *synchronous) Next() (*manager.Result, error) {
 	// First we resolve all issues with children
 	if s.child != nil {
 		result, err := s.child.Next()
@@ -61,7 +61,10 @@ func (s *synchronous) Next() (output.Result, error) {
 
 		switch typed := next.(type) {
 		case token.StartToken:
-			s.spawnNewChild()
+			err := s.spawnNewChild(typed)
+			if err != nil {
+				return nil, err
+			}
 			// We call out own next as the child might not actually have anything in which we would have to continue our own next search
 			return s.Next()
 		case token.EndToken:
@@ -75,16 +78,24 @@ func (s *synchronous) Next() (output.Result, error) {
 	}
 }
 
-func (s *synchronous) spawnNewChild() {
+func (s *synchronous) spawnNewChild(t token.StartToken) error {
+	child, err := s.manager.CreateChildNode(t)
+	if err != nil {
+		return err
+	}
 	s.child = &synchronous{
 		reader:  s.reader,
-		manager: s.manager.CreateChildNode(),
+		manager: child,
 	}
+	return nil
 }
 
 // close sets the iterator into a closed state that will attempt to return any remaining unfinished output children
-func (s *synchronous) close() (output.Result, error) {
+func (s *synchronous) close() (*manager.Result, error) {
 	s.closed = true
-	s.manager.Flush()
+	err := s.manager.Flush()
+	if err != nil {
+		return nil, err
+	}
 	return s.manager.GetResult(), nil
 }

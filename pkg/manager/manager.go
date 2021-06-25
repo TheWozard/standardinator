@@ -1,4 +1,6 @@
-package output
+package manager
+
+import "TheWozard/standardinator/pkg/token"
 
 // Manager is responsible for keeping track of the partial and completed output objects
 type Manager interface {
@@ -8,11 +10,11 @@ type Manager interface {
 	GetResult() *Result
 
 	// Receive accepts a key value pair and passes it to all needed locations. If results are completed they are available as part of the GetResult() call
-	Receive(key string, value interface{})
+	Receive(key string, value interface{}) error
 
 	// CreateChildNode creates a new child node with its own object tracking for locally available objects
-	CreateChildNode() Manager
+	CreateChildNode(t token.StartToken) (Manager, error)
 
 	// Flush forces all open objects to be closed and output, even in a partially complete state.
-	Flush()
+	Flush() error
 }
