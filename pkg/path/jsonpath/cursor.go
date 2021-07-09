@@ -6,6 +6,15 @@ import "TheWozard/standardinator/pkg/path"
 type cursor struct {
 	cursor int
 	parent parsed
+	value  path.ValueCollector
+}
+
+func (c cursor) AddValue(key string, value interface{}) error {
+	return c.value.AddValue(key, value)
+}
+
+func (c cursor) GetValue() (interface{}, error) {
+	return c.value.GetValue()
 }
 
 func (c cursor) IsMatched() bool {
@@ -22,6 +31,7 @@ func (c cursor) Match(target string) path.Cursor {
 		result := cursor{
 			cursor: c.cursor + 1,
 			parent: c.parent,
+			value:  c.value,
 		}.Match(target)
 		if result != nil {
 			return c
@@ -34,6 +44,7 @@ func (c cursor) Match(target string) path.Cursor {
 		return cursor{
 			cursor: c.cursor + 1,
 			parent: c.parent,
+			value:  c.value,
 		}
 	}
 	return nil

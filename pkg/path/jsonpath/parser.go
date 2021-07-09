@@ -39,6 +39,7 @@ func (p parsed) Match(target string) path.Cursor {
 		return cursor{
 			cursor: 1,
 			parent: p,
+			value:  p.getNewValueCollector(),
 		}
 	}
 	return nil
@@ -49,7 +50,17 @@ func (p parsed) MatchRoot() path.Cursor {
 		return cursor{
 			cursor: 1,
 			parent: p,
+			value:  p.getNewValueCollector(),
 		}
 	}
 	return nil
+}
+
+func (p parsed) getNewValueCollector() path.ValueCollector {
+	for _, target := range p.path {
+		if target == "*" {
+			return path.NewMultiValue()
+		}
+	}
+	return path.NewSingleValue()
 }

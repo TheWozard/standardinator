@@ -1,24 +1,16 @@
-package manager
+package path
 
 import (
-	"TheWozard/standardinator/pkg/path"
 	"errors"
 )
 
-// resolver is the link between a cursor and the value it resolves to. In order to take advantage of the immutability
-// of the cursors while having a static value that once resolves persists up the tree
-type resolver struct {
-	Cursor    path.Cursor
-	Collector valueCollector
-}
-
-type valueCollector interface {
+type ValueCollector interface {
 	AddValue(key string, value interface{}) error
 	GetValue() (interface{}, error)
 }
 
 // When a value should only resolve to a single value
-func newSingleValue() valueCollector {
+func NewSingleValue() ValueCollector {
 	return &singleValue{}
 }
 
@@ -42,7 +34,7 @@ func (v *singleValue) GetValue() (interface{}, error) {
 }
 
 // When a value should resolve to a list of values
-func newMultiValue() valueCollector {
+func NewMultiValue() ValueCollector {
 	return &multiValue{
 		value: []interface{}{},
 	}
@@ -62,7 +54,7 @@ func (v *multiValue) GetValue() (interface{}, error) {
 }
 
 // When a value should only resolve to a object
-func newObjectValue() valueCollector {
+func NewObjectValue() ValueCollector {
 	return &objectValue{
 		value: map[string]interface{}{},
 	}
@@ -82,7 +74,7 @@ func (v *objectValue) GetValue() (interface{}, error) {
 }
 
 // When a value should never resolve
-func newNoOpValue() valueCollector {
+func NewNoOpValue() ValueCollector {
 	return &noOpValue{}
 }
 

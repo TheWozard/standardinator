@@ -10,8 +10,8 @@ import (
 // NewIterator creates new Iterator with the provided Reader. This will read the reader and convert the tokens to configured output
 func NewIterator(reader token.Reader) Iterator {
 	return &synchronous{
-		reader:  reader,
-		manager: manager.NewManager(),
+		reader: reader,
+		// manager: manager.NewManager(),
 	}
 }
 
