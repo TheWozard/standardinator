@@ -53,7 +53,12 @@ func (e *jsonExtractor) Next() (map[string]interface{}, error) {
 					if err != nil {
 						return nil, err
 					}
-					if raw != '[' {
+					switch delim := raw.(type) {
+					case json.Delim:
+						if delim != '[' {
+							e.matcher.Reset()
+						}
+					default:
 						e.matcher.Reset()
 					}
 				}

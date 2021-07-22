@@ -85,7 +85,7 @@ func TestXMLExtractor(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("[%d]%s", i, test.name), func(t *testing.T) {
-			extractor := extractor.NewXML(test.config, bytes.NewBufferString(test.input))
+			extractor := extractor.NewXMLExtractor(test.config, bytes.NewBufferString(test.input))
 			for _, expected := range test.output {
 				actual, err := extractor.Next()
 				require.NoError(t, err)
