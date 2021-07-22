@@ -6,21 +6,24 @@ import (
 	"io"
 )
 
-func NewXML(config XmlExtractorConfig, reader io.Reader) Extractor {
+// XmlExtractorConfig  defines configuration for a XML based Extractor
+type XmlExtractorConfig struct {
+	// Token the target token to output element of
+	Token string `json:"token"`
+	// Elements that are known to repeat inside of the element
+	Repeats []string `json:"repeats"`
+	// DisableStrict if the default golang XML decoder strict option
+	DisableStrict bool `json:"disable_strict"`
+}
+
+// NewXMLExtractor creates an Extractor that reads XML data from r
+func NewXMLExtractor(config XmlExtractorConfig, reader io.Reader) Extractor {
 	decoder := xml.NewDecoder(reader)
-	decoder.Strict = config.Strict
+	decoder.Strict = !config.DisableStrict
 	return &xmlExtractor{
 		decoder: decoder,
 		config:  config,
 	}
-}
-
-type XmlExtractorConfig struct {
-	Token string `json:"Token"`
-	// TODO: implement arrays
-	Repeats        []string `json:"Repeats"`
-	Strict         bool     `json:"Strict"`
-	IgnoreConflict bool     `json:"IgnoreConflict"`
 }
 
 type xmlExtractor struct {
@@ -43,6 +46,7 @@ func (e *xmlExtractor) Next() (map[string]interface{}, error) {
 	}
 }
 
+// xmlDataContext defines the overall element extraction context
 type xmlDataContext struct {
 	config XmlExtractorConfig
 	stack  []*xmlContext
@@ -53,17 +57,19 @@ type xmlContext struct {
 	namespace string
 }
 
+// Add adds the past key and value to the current stack context
 func (c *xmlDataContext) Add(key string, value interface{}) error {
 	target := c.stack[len(c.stack)-1]
+	// TODO: Add indexes to repeat elements
+	// We should never accidentally overwrite data
 	if old, ok := target.data[key]; ok {
-		if !c.config.IgnoreConflict {
-			return fmt.Errorf("conflicting key '%s' has value '%v' and '%v'", key, old, value)
-		}
+		return fmt.Errorf("conflicting key '%s' has value '%v' and '%v'", key, old, value)
 	}
 	target.data[key] = value
 	return nil
 }
 
+// Start creates a new parent context to the current stack based on the passed start element
 func (c *xmlDataContext) Start(start xml.StartElement) error {
 	data := map[string]interface{}{}
 	c.stack = append(c.stack, &xmlContext{
@@ -71,6 +77,7 @@ func (c *xmlDataContext) Start(start xml.StartElement) error {
 		namespace: start.Name.Local,
 	})
 	for _, att := range start.Attr {
+		// Add all the elements attributes
 		err := c.Add(fmt.Sprintf("@%s", att.Name.Local), att.Value)
 		if err != nil {
 			return err
@@ -79,19 +86,23 @@ func (c *xmlDataContext) Start(start xml.StartElement) error {
 	return nil
 }
 
+// End ends the current stack context and provides it data up the stack. If the stack would be empty the data is returned.
 func (c *xmlDataContext) End(end xml.EndElement) (map[string]interface{}, error) {
 	var target *xmlContext
 	c.stack, target = c.stack[:len(c.stack)-1], c.stack[len(c.stack)-1]
 	if len(c.stack) == 0 {
+		// If the stack would be empty, return the data
 		return target.data, nil
 	}
 	_, ok := target.data["#text"]
 	if len(target.data) == 1 && ok {
+		// If the data only contains #text then return it as a single value
 		err := c.Add(target.namespace, target.data["#text"])
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		// Else return the completed data context as is
 		err := c.Add(target.namespace, target.data)
 		if err != nil {
 			return nil, err
@@ -100,6 +111,7 @@ func (c *xmlDataContext) End(end xml.EndElement) (map[string]interface{}, error)
 	return nil, nil
 }
 
+// decodeToMap continues to pull tokens and decode them to a map
 func (e *xmlExtractor) decodeToMap(start xml.StartElement) (map[string]interface{}, error) {
 	contextStack := &xmlDataContext{
 		stack: []*xmlContext{},
@@ -118,6 +130,7 @@ func (e *xmlExtractor) decodeToMap(start xml.StartElement) (map[string]interface
 			}
 		case xml.EndElement:
 			final, err := contextStack.End(typed)
+			// in the event we get a final back we have received the completed map
 			if err != nil {
 				return nil, err
 			}
@@ -125,6 +138,7 @@ func (e *xmlExtractor) decodeToMap(start xml.StartElement) (map[string]interface
 				return final, nil
 			}
 		case xml.CharData:
+			// #text will be converted to a pure value in the event there is no other parts in the context
 			err := contextStack.Add("#text", string(typed))
 			if err != nil {
 				return nil, err
