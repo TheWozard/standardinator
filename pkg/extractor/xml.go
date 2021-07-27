@@ -48,8 +48,8 @@ func (e *xmlExtractor) Next() (map[string]interface{}, error) {
 
 // xmlDataContext defines the overall element extraction context
 type xmlDataContext struct {
-	config XmlExtractorConfig
-	stack  []*xmlContext
+	stack        []*xmlContext
+	repeatLookup map[string]struct{}
 }
 
 type xmlContext struct {
@@ -60,8 +60,20 @@ type xmlContext struct {
 // Add adds the past key and value to the current stack context
 func (c *xmlDataContext) Add(key string, value interface{}) error {
 	target := c.stack[len(c.stack)-1]
-	// TODO: Add indexes to repeat elements
-	// We should never accidentally overwrite data
+	if _, ok := c.repeatLookup[key]; ok {
+		var prev []interface{}
+		if old, ok := target.data[key]; ok {
+			switch typed := old.(type) {
+			case []interface{}:
+				prev = typed
+			default:
+				return fmt.Errorf("unexpected value for repeating key '%s' %v", key, typed)
+			}
+		} else {
+			prev = []interface{}{}
+		}
+		target.data[key] = append(prev, value)
+	}
 	if old, ok := target.data[key]; ok {
 		return fmt.Errorf("conflicting key '%s' has value '%v' and '%v'", key, old, value)
 	}
@@ -113,8 +125,13 @@ func (c *xmlDataContext) End(end xml.EndElement) (map[string]interface{}, error)
 
 // decodeToMap continues to pull tokens and decode them to a map
 func (e *xmlExtractor) decodeToMap(start xml.StartElement) (map[string]interface{}, error) {
+	lookup := map[string]struct{}{}
+	for _, key := range e.config.Repeats {
+		lookup[key] = struct{}{}
+	}
 	contextStack := &xmlDataContext{
-		stack: []*xmlContext{},
+		stack:        []*xmlContext{},
+		repeatLookup: lookup,
 	}
 	contextStack.Start(start)
 	for {
