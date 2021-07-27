@@ -6,8 +6,8 @@ import (
 	"io"
 )
 
-// XmlExtractorConfig  defines configuration for a XML based Extractor
-type XmlExtractorConfig struct {
+// XmlConfig  defines configuration for a XML based Extractor
+type XmlConfig struct {
 	// Token the target token to output element of
 	Token string `json:"token"`
 	// Elements that are known to repeat inside of the element
@@ -17,7 +17,7 @@ type XmlExtractorConfig struct {
 }
 
 // NewXMLExtractor creates an Extractor that reads XML data from r
-func NewXMLExtractor(config XmlExtractorConfig, reader io.Reader) Extractor {
+func NewXMLExtractor(config XmlConfig, reader io.Reader) Extractor {
 	decoder := xml.NewDecoder(reader)
 	decoder.Strict = !config.DisableStrict
 	return &xmlExtractor{
@@ -28,7 +28,7 @@ func NewXMLExtractor(config XmlExtractorConfig, reader io.Reader) Extractor {
 
 type xmlExtractor struct {
 	decoder *xml.Decoder
-	config  XmlExtractorConfig
+	config  XmlConfig
 }
 
 func (e *xmlExtractor) Next() (map[string]interface{}, error) {

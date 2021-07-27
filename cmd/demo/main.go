@@ -2,7 +2,6 @@ package main
 
 import (
 	"TheWozard/standardinator/pkg/config"
-	"TheWozard/standardinator/pkg/core"
 	"fmt"
 	"io"
 	"os"
@@ -16,16 +15,14 @@ func main() {
 	}
 	defer file.Close()
 
-	tokenizer, err := config.NewTokenizer("json", file)
+	extractor, err := config.GetExtractor("json", []byte("{}"), file)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	iter := core.NewIterator(tokenizer)
-
 	for {
-		result, err := iter.Next()
+		result, err := extractor.Next()
 		if err != nil {
 			if err == io.EOF {
 				break

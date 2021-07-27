@@ -14,31 +14,31 @@ func TestXMLExtractor(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
-		config extractor.XmlExtractorConfig
+		config extractor.XmlConfig
 		output []map[string]interface{}
 	}{
 		{
 			name:   "Empty",
 			input:  ``,
-			config: extractor.XmlExtractorConfig{},
+			config: extractor.XmlConfig{},
 			output: []map[string]interface{}{},
 		},
 		{
 			name:   "NoMatch",
 			input:  `<data></data>`,
-			config: extractor.XmlExtractorConfig{},
+			config: extractor.XmlConfig{},
 			output: []map[string]interface{}{},
 		},
 		{
 			name:   "EmptyObject",
 			input:  `<data></data>`,
-			config: extractor.XmlExtractorConfig{Token: "data"},
+			config: extractor.XmlConfig{Token: "data"},
 			output: []map[string]interface{}{{}},
 		},
 		{
 			name:   "ObjectWithData",
 			input:  `<data att="value">5<A att="foo">1</A><B>2</B><C></C></data>`,
-			config: extractor.XmlExtractorConfig{Token: "data"},
+			config: extractor.XmlConfig{Token: "data"},
 			output: []map[string]interface{}{
 				{
 					"@att":  "value",
@@ -55,7 +55,7 @@ func TestXMLExtractor(t *testing.T) {
 		{
 			name:   "MultiTargets",
 			input:  `<entities><data>A</data><data>B</data><data>C</data></entities>`,
-			config: extractor.XmlExtractorConfig{Token: "data"},
+			config: extractor.XmlConfig{Token: "data"},
 			output: []map[string]interface{}{
 				{
 					"#text": "A",
@@ -71,7 +71,7 @@ func TestXMLExtractor(t *testing.T) {
 		{
 			name:   "SplitTargets",
 			input:  `<entities><data>A</data></entities><entities><data>B</data></entities>`,
-			config: extractor.XmlExtractorConfig{Token: "data"},
+			config: extractor.XmlConfig{Token: "data"},
 			output: []map[string]interface{}{
 				{
 					"#text": "A",
@@ -84,7 +84,7 @@ func TestXMLExtractor(t *testing.T) {
 		{
 			name:   "RepeatElements",
 			input:  `<entities><data>A</data><data>B</data></entities>`,
-			config: extractor.XmlExtractorConfig{Token: "entities", Repeats: []string{"data"}},
+			config: extractor.XmlConfig{Token: "entities", Repeats: []string{"data"}},
 			output: []map[string]interface{}{
 				{
 					"data": []interface{}{

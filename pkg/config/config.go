@@ -1,15 +1,19 @@
 package config
 
 import (
-	"TheWozard/standardinator/pkg/path"
-	"TheWozard/standardinator/pkg/path/jsonpath"
+	"TheWozard/standardinator/pkg/extractor"
+	"encoding/json"
+	"io"
 )
 
+type ExtractionConfig = []OutputConfig
+
 type OutputConfig struct {
-	Name string `json:"Name"`
-	Path string `json:"For"`
+	Name            string          `json:"name"`
+	Extractor       string          `json:"extractor"`
+	ExtractorConfig json.RawMessage `json:"extractor_config"`
 }
 
-func (c OutputConfig) GetCongfigMatchPath() (path.Parsed, error) {
-	return jsonpath.Parse(c.Path)
+func (c *OutputConfig) GetExtractor(reader io.Reader) (extractor.Extractor, error) {
+	return GetExtractor(c.Extractor, c.ExtractorConfig, reader)
 }
