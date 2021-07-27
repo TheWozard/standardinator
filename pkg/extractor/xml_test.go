@@ -81,6 +81,19 @@ func TestXMLExtractor(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "RepeatElements",
+			input:  `<entities><data>A</data><data>B</data></entities>`,
+			config: extractor.XmlExtractorConfig{Token: "entities", Repeats: []string{"data"}},
+			output: []map[string]interface{}{
+				{
+					"data": []interface{}{
+						"A",
+						"B",
+					},
+				},
+			},
+		},
 	}
 
 	for i, test := range tests {

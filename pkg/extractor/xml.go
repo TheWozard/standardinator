@@ -73,6 +73,7 @@ func (c *xmlDataContext) Add(key string, value interface{}) error {
 			prev = []interface{}{}
 		}
 		target.data[key] = append(prev, value)
+		return nil
 	}
 	if old, ok := target.data[key]; ok {
 		return fmt.Errorf("conflicting key '%s' has value '%v' and '%v'", key, old, value)
