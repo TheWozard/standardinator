@@ -1,5 +1,7 @@
 # Standardinator
 
+![test](https://github.com/TheWozard/standardinator/actions/workflows/test.yml/badge.svg)
+
 Golang package for converting streams of data into a standardized formats using [JSONPath](https://goessner.net/articles/JsonPath/)
 
 ## Target Functionality
