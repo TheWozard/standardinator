@@ -33,9 +33,10 @@ func (m *multi) Next() (map[string]interface{}, error) {
 	for i, extractor := range m.extractors {
 		channel := make(chan payload)
 		chans[i] = channel
+		e := extractor
 		go func() {
 			for {
-				rtn, err := extractor.Next()
+				rtn, err := e.Next()
 				channel <- payload{rtn, err}
 				if err != nil {
 					close(channel)
