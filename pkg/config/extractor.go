@@ -18,14 +18,14 @@ func GetExtractor(kind ExtractorKind, raw json.RawMessage, reader io.Reader) (ex
 	switch kind {
 	case JSONExtractor:
 		config := extractor.JSONConfig{}
-		err := json.Unmarshal(raw, config)
+		err := json.Unmarshal(raw, &config)
 		if err != nil {
 			return nil, err
 		}
 		return extractor.NewJsonExtractor(config, reader), nil
 	case XMLExtractor:
 		config := extractor.XmlConfig{}
-		err := json.Unmarshal(raw, config)
+		err := json.Unmarshal(raw, &config)
 		if err != nil {
 			return nil, err
 		}

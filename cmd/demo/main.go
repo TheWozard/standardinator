@@ -15,7 +15,13 @@ func main() {
 	}
 	defer file.Close()
 
-	extractor, err := config.GetExtractor("json", []byte("{}"), file)
+	extractors, err := config.NewExtractionConfigFromFile("./config.json")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	extractor, err := extractors.GetExtractor(file)
 	if err != nil {
 		fmt.Println(err)
 		return

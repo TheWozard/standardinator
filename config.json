@@ -1,0 +1,16 @@
+[
+    {
+        "name": "album",
+        "extractor": "json",
+        "extractor_config": {
+            "token": "data"
+        }
+    },
+    {
+        "name": "song",
+        "extractor": "json",
+        "extractor_config": {
+            "token": "songs"
+        }
+    }
+]

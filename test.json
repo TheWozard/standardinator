@@ -1,22 +1,24 @@
-[
-    {
-        "album": "Abbey Road",
-        "cover_art": "<url>",
-        "songs": [
-            {
-                "name":"Come Together",
-                "link": "<url>",
-                "details": {
-                    "duration":"4:19"
+{
+    "data": [
+        {
+            "album": "Abbey Road",
+            "cover_art": "<url>",
+            "songs": [
+                {
+                    "name": "Come Together",
+                    "link": "<url>",
+                    "details": {
+                        "duration": "4:19"
+                    }
+                },
+                {
+                    "name": "Something",
+                    "link": "<url>",
+                    "details": {
+                        "duration": "3:27"
+                    }
                 }
-            },
-            {
-                "name":"Something",
-                "link": "<url>",
-                "details": {
-                    "duration":"3:27"
-                }
-            }
-        ]
-    }
-]
+            ]
+        }
+    ]
+}
