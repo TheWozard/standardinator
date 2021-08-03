@@ -76,12 +76,12 @@ func (m *multi) Next() (map[string]interface{}, error) {
 				select {
 				case channel <- payload{rtn, err}:
 					if err != nil {
-						break
+						return
 					}
 				case <-ctx.Done():
 					// We need a way to ensure all threads close in the event
 					// of an error
-					break
+					return
 				}
 			}
 		}()
