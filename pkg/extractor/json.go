@@ -6,30 +6,29 @@ import (
 	"io"
 )
 
-// JSONConfig defines configuration for a JSON based Extractor
-type JSONConfig struct {
+// JSON defines configuration for a JSON based Extractor
+type JSON struct {
 	Token string `json:"token"`
 }
 
-// GetMatcher provides the matcher for this config
-// TODO: expand support for matching
-func (c JSONConfig) GetMatcher() *matcher.Simple {
-	return matcher.NewSimple(c.Token)
-}
-
-// NewJsonExtractor creates an Extractor that reads JSON data from r
-func NewJsonExtractor(config JSONConfig, r io.Reader) Extractor {
+// New creates an Extractor that reads JSON data from r
+func (c JSON) New(r io.Reader) Extractor {
 	decoder := json.NewDecoder(r)
 	return &jsonExtractor{
-		config:  config,
+		config:  c,
 		decoder: decoder,
 
-		matcher: config.GetMatcher(),
+		matcher: c.getMatcher(),
 	}
 }
 
+// getMatcher provides the matcher for this config
+func (c JSON) getMatcher() *matcher.Simple {
+	return matcher.NewSimple(c.Token)
+}
+
 type jsonExtractor struct {
-	config  JSONConfig
+	config  JSON
 	decoder *json.Decoder
 
 	matcher *matcher.Simple

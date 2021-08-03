@@ -2,31 +2,39 @@ package main
 
 import (
 	"TheWozard/standardinator/pkg/config"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 )
 
 func main() {
-	file, err := os.Open("./test.json")
+
+	configFile := flag.String("config", "./config.json", "The path to configuration file")
+	dataFile := flag.String("config", "./test.json", "The path to configuration file")
+
+	flag.Parse()
+
+	file, err := os.Open(*dataFile)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer file.Close()
 
-	extractors, err := config.NewExtractionConfigFromFile("./config.json")
+	conf, err := config.NewConfigFromFile(*configFile)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	extractor, err := extractors.GetExtractor(file)
+	decoder, err := conf.GetDecoder()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
+	extractor := decoder.New(file)
 	for {
 		result, err := extractor.Next()
 		if err != nil {

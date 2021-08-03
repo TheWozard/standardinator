@@ -4,7 +4,6 @@ import (
 	"TheWozard/standardinator/pkg/extractor"
 	"encoding/json"
 	"fmt"
-	"io"
 )
 
 const (
@@ -14,22 +13,22 @@ const (
 
 type ExtractorKind = string
 
-func GetExtractor(kind ExtractorKind, raw json.RawMessage, reader io.Reader) (extractor.Extractor, error) {
+func GetDecoder(kind ExtractorKind, raw json.RawMessage) (extractor.Decoder, error) {
 	switch kind {
 	case JSONExtractor:
-		config := extractor.JSONConfig{}
+		config := extractor.JSON{}
 		err := json.Unmarshal(raw, &config)
 		if err != nil {
 			return nil, err
 		}
-		return extractor.NewJsonExtractor(config, reader), nil
+		return config, nil
 	case XMLExtractor:
-		config := extractor.XmlConfig{}
+		config := extractor.XML{}
 		err := json.Unmarshal(raw, &config)
 		if err != nil {
 			return nil, err
 		}
-		return extractor.NewXMLExtractor(config, reader), nil
+		return config, nil
 	default:
 		return nil, fmt.Errorf("invalid extractor kind '%s'", kind)
 	}

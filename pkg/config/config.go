@@ -7,42 +7,35 @@ import (
 	"os"
 )
 
-func NewExtractionConfigFromFile(path string) (ExtractionConfig, error) {
+func NewConfigFromFile(path string) (Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 
 	}
 	defer file.Close()
-	return NewExtractionConfig(file)
+	return NewConfig(file)
 }
 
-func NewExtractionConfig(r io.Reader) (ExtractionConfig, error) {
-	config := ExtractionConfig{}
+func NewConfig(r io.Reader) (Config, error) {
+	config := Config{}
 	decoder := json.NewDecoder(r)
 	err := decoder.Decode(&config)
 	return config, err
 }
 
-type ExtractionConfig []OutputConfig
+type Config []OutputConfig
 
-func (configs ExtractionConfig) GetExtractor(reader io.Reader) (extractor.Extractor, error) {
-	extractors := []extractor.Extractor{}
-	test := reader
+func (configs Config) GetDecoder() (extractor.Decoder, error) {
+	decoders := make([]extractor.Decoder, len(configs))
 	for i, config := range configs {
-		r := test
-		if i != len(configs)-1 {
-			var pw io.Writer
-			r, pw = io.Pipe()
-			test = io.TeeReader(test, pw)
-		}
-		extractor, err := config.GetExtractor(r)
+		decoder, err := config.GetDecoder()
 		if err != nil {
 			return nil, err
 		}
-		extractors = append(extractors, extractor)
+		decoders[i] = decoder
 	}
-	return extractor.Multi(extractors), nil
+	return extractor.Multi{Decoders: decoders}, nil
 }
 
 type OutputConfig struct {
@@ -51,6 +44,6 @@ type OutputConfig struct {
 	ExtractorConfig json.RawMessage `json:"extractor_config"`
 }
 
-func (c *OutputConfig) GetExtractor(reader io.Reader) (extractor.Extractor, error) {
-	return GetExtractor(c.Extractor, c.ExtractorConfig, reader)
+func (c *OutputConfig) GetDecoder() (extractor.Decoder, error) {
+	return GetDecoder(c.Extractor, c.ExtractorConfig)
 }
