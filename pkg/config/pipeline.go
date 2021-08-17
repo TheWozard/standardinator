@@ -1,7 +1,6 @@
 package config
 
 import (
-	"TheWozard/standardinator/pkg/extractor"
 	"TheWozard/standardinator/pkg/pipeline"
 	"encoding/json"
 	"fmt"
@@ -16,7 +15,7 @@ type PipelineStepKind = string
 func GetPipelineStep(kind PipelineStepKind, raw json.RawMessage) (pipeline.PipelineStep, error) {
 	switch kind {
 	case SelectStep:
-		config := extractor.JSON{}
+		config := pipeline.Select{}
 		err := json.Unmarshal(raw, &config)
 		if err != nil {
 			return nil, err
