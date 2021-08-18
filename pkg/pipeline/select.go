@@ -1,16 +1,46 @@
 package pipeline
 
-import "github.com/PaesslerAG/jsonpath"
+import (
+	"context"
+	"encoding/json"
 
-type Select struct {
-	Paths map[string]string `json:"paths"`
+	"github.com/PaesslerAG/gval"
+	"github.com/PaesslerAG/jsonpath"
+)
+
+// DecodeSelect ...
+func DecodeSelect(raw json.RawMessage) (PipelineStep, error) {
+	config := map[string]string{}
+	err := json.Unmarshal(raw, &config)
+	if err != nil {
+		return nil, err
+	}
+	paths := map[string]gval.Evaluable{}
+	for key, val := range config {
+		paths[key], err = jsonpath.New(val)
+		if err != nil {
+			return nil, err
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &SelectStep{
+		Context: ctx,
+		Cancel:  cancel,
+		Paths:   paths,
+	}, nil
 }
 
-func (s Select) Init(prev GetNext) GetNext {
+type SelectStep struct {
+	Context context.Context
+	Cancel  context.CancelFunc
+	Paths   map[string]gval.Evaluable
+}
+
+func (s SelectStep) Init(prev GetNext) GetNext {
 	return Wrap(prev, func(data map[string]interface{}) (map[string]interface{}, error) {
 		new := map[string]interface{}{}
-		for key, path := range s.Paths {
-			data, err := jsonpath.Get(path, data)
+		for key, eval := range s.Paths {
+			data, err := eval(s.Context, data)
 			if err != nil {
 				return nil, err
 			}
@@ -20,6 +50,7 @@ func (s Select) Init(prev GetNext) GetNext {
 	})
 }
 
-func (s Select) Close() error {
+func (s SelectStep) Close() error {
+	s.Cancel()
 	return nil
 }

@@ -1,40 +1,43 @@
 package pipeline
 
 import (
-	"TheWozard/standardinator/pkg/extractor"
-
 	"github.com/hashicorp/go-multierror"
 )
 
-type GetNext func() (map[string]interface{}, error)
-
-// Pipeline
-type Pipeline struct {
-	name    string
-	next    GetNext
-	steps   []PipelineStep
-	extract extractor.Extractor
+// Pipeline an overall view of a complete pipeline and the primary location for interacting with it.
+type Pipeline interface {
+	// Next gets the next element in the pipeline. Returns io.EOF at the end.
+	Next() (map[string]interface{}, error)
+	// Closes the pipeline and all steps. Should always be called once done.
+	Close() error
 }
 
-// PipelineElement
-type PipelineElement struct {
-	Name string
-	Data map[string]interface{}
-}
-
-// Next
-func (p *Pipeline) Next() (*PipelineElement, error) {
-	data, err := p.next()
-	if err != nil {
-		return nil, err
+// NewPipeline creates a new Pipeline based on the passed PipelineStep pulling from the passed provider
+func NewPipeline(steps []PipelineStep, provider GetNext) Pipeline {
+	next := provider
+	for _, step := range steps {
+		next = step.Init(next)
 	}
-	return &PipelineElement{
-		Name: p.name,
-		Data: data,
-	}, nil
+
+	return &pipeline{
+		next:  next,
+		steps: steps,
+	}
 }
 
-func (p *Pipeline) Close() error {
+// pipeline implementation of the Pipeline interface
+type pipeline struct {
+	next  GetNext
+	steps []PipelineStep
+}
+
+// Next gets the next element in the pipeline. Returns io.EOF at the end.
+func (p *pipeline) Next() (map[string]interface{}, error) {
+	return p.next()
+}
+
+// Closes the pipeline and all steps. Should always be called once done.
+func (p *pipeline) Close() error {
 	var result error
 
 	for _, step := range p.steps {
@@ -44,54 +47,4 @@ func (p *Pipeline) Close() error {
 	}
 
 	return result
-}
-
-type PipelineStep interface {
-	Init(GetNext) GetNext
-	Close() error
-}
-
-func NewPipeline(name string, steps []PipelineStep, extract extractor.Extractor) *Pipeline {
-	next := extract.Next
-	for _, step := range steps {
-		next = step.Init(next)
-	}
-
-	return &Pipeline{
-		name:    name,
-		next:    next,
-		steps:   steps,
-		extract: extract,
-	}
-}
-
-func Wrap(prev GetNext, new func(data map[string]interface{}) (map[string]interface{}, error)) GetNext {
-	return func() (map[string]interface{}, error) {
-		data, err := prev()
-		if err != nil {
-			return nil, err
-		}
-		return new(data)
-	}
-}
-
-func WrapBuffered(prev GetNext, new func(data map[string]interface{}) ([]map[string]interface{}, error)) GetNext {
-	buffer := []map[string]interface{}{}
-	return func() (map[string]interface{}, error) {
-		for {
-			if len(buffer) > 0 {
-				var rtn map[string]interface{}
-				rtn, buffer = buffer[0], buffer[1:]
-				return rtn, nil
-			}
-			data, err := prev()
-			if err != nil {
-				return nil, err
-			}
-			buffer, err = new(data)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
 }
