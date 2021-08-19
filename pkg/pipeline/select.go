@@ -15,9 +15,10 @@ func DecodeSelect(raw json.RawMessage) (PipelineStep, error) {
 	if err != nil {
 		return nil, err
 	}
+	builder := gval.Full(jsonpath.PlaceholderExtension())
 	paths := map[string]gval.Evaluable{}
 	for key, val := range config {
-		paths[key], err = jsonpath.New(val)
+		paths[key], err = builder.NewEvaluable(val)
 		if err != nil {
 			return nil, err
 		}
