@@ -1,12 +1,14 @@
 package extractor
 
-import "io"
+import (
+	"TheWozard/standardinator/pkg/data"
+	"io"
+)
 
 // Extractor provides an Next function to iterate over a set of elements
 type Extractor interface {
-	// Next gets the next available element or returns io.EOF when no more remain
-	// TODO: more generic return to support non map based data
-	Next() (map[string]interface{}, error)
+	// Next gets the next available payload or returns io.EOF when no more remain
+	Next() (*data.Payload, error)
 }
 
 // Decoder creates new Extractors for provided io.Reader

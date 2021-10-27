@@ -35,15 +35,35 @@ func TestSelect(t *testing.T) {
 						"Cars":      true,
 						"Computers": true,
 					},
+					"prefered": 1,
+					"Files": []interface{}{
+						map[string]interface{}{
+							"Name": "A",
+							"Url":  "<URL>",
+						},
+						map[string]interface{}{
+							"Name": "B",
+							"Url":  "<URL>",
+						},
+						map[string]interface{}{
+							"Name": "C",
+							"Url":  "<URL>",
+						},
+						map[string]interface{}{
+							"Name": "D",
+							"Url":  "<URL>",
+						},
+					},
+					"Data1": "DataA",
+					"Data2": "DataB",
+					"Data3": "DataC",
 				},
 			},
 			paths: map[string]string{
-				"LikesCars":      "$.Likes.Cars",
-				"LikesComputers": "$.Likes.Computers",
-				"Likes":          "$.Likes.*",
+				"Data": `{#0: $[?(@ =~ "Data.*")]}`,
 			},
 			post: []map[string]interface{}{
-				{"LikesCars": true, "LikesComputers": true, "Likes": []interface{}{true, true}},
+				{},
 			},
 		},
 	}

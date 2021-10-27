@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"TheWozard/standardinator/pkg/data"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ type xmlExtractor struct {
 	config  XML
 }
 
-func (e *xmlExtractor) Next() (map[string]interface{}, error) {
+func (e *xmlExtractor) Next() (*data.Payload, error) {
 	for {
 		token, err := e.decoder.Token()
 		if err != nil {
@@ -40,7 +41,11 @@ func (e *xmlExtractor) Next() (map[string]interface{}, error) {
 		switch typed := token.(type) {
 		case xml.StartElement:
 			if typed.Name.Local == e.config.Token {
-				return e.decodeToMap(typed)
+				raw, err := e.decodeToMap(typed)
+				return &data.Payload{
+					Name: e.config.Token,
+					Data: raw,
+				}, err
 			}
 		}
 	}

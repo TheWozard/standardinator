@@ -73,7 +73,8 @@ func TestJSONExtractor(t *testing.T) {
 			for _, expected := range test.output {
 				actual, err := extractor.Next()
 				require.NoError(t, err)
-				require.Equal(t, expected, actual)
+				require.Equal(t, test.config.Token, actual.Name)
+				require.Equal(t, expected, actual.Data)
 			}
 			actual, err := extractor.Next()
 			require.Nil(t, actual, "Unexpected Extra Results")

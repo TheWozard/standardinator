@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"TheWozard/standardinator/pkg/data"
 	"TheWozard/standardinator/pkg/matcher"
 	"encoding/json"
 	"io"
@@ -34,7 +35,7 @@ type jsonExtractor struct {
 	matcher *matcher.Simple
 }
 
-func (e *jsonExtractor) Next() (map[string]interface{}, error) {
+func (e *jsonExtractor) Next() (*data.Payload, error) {
 	for {
 		for !e.matcher.Matched {
 			// Searching for the next match
@@ -65,9 +66,12 @@ func (e *jsonExtractor) Next() (map[string]interface{}, error) {
 		}
 		// Extract elements
 		for e.decoder.More() {
-			data := map[string]interface{}{}
-			e.decoder.Decode(&data)
-			return data, nil
+			raw := map[string]interface{}{}
+			e.decoder.Decode(&raw)
+			return &data.Payload{
+				Name: e.config.Token,
+				Data: raw,
+			}, nil
 		}
 		// Start over
 		e.matcher.Reset()

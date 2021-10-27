@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"TheWozard/standardinator/pkg/data"
 	"context"
 	"io"
 	"reflect"
@@ -17,12 +18,12 @@ func (c Multi) New(r io.Reader) Extractor {
 	next := r
 	for i, decoder := range c.Decoders {
 		current := next
-		if i != len(c.Decoders)-1 {
+		if i < len(c.Decoders)-1 {
 			var pw io.Writer
 			// We use a pipe so the read/write opperations block and there isn't a buildup
 			// of unread elements in memory
-			current, pw = io.Pipe()
-			next = io.TeeReader(current, pw)
+			next, pw = io.Pipe()
+			current = io.TeeReader(current, pw)
 		}
 		extractors[i] = decoder.New(current)
 	}
@@ -31,11 +32,9 @@ func (c Multi) New(r io.Reader) Extractor {
 	}
 }
 
-type data map[string]interface{}
-
-type payload struct {
-	data
-	error
+type response struct {
+	payload *data.Payload
+	err     error
 }
 
 // Coordinates multiple tread extraction for running extractors in parallel while
@@ -47,10 +46,10 @@ type payload struct {
 // first one has extracted its object, which could be at the end of a large file.
 type multi struct {
 	extractors []Extractor
-	get        func() (map[string]interface{}, error)
+	get        func() (*data.Payload, error)
 }
 
-func (m *multi) Next() (map[string]interface{}, error) {
+func (m *multi) Next() (*data.Payload, error) {
 	// Once we get our first call we can short circuit
 	if m.get != nil {
 		return m.get()
@@ -60,21 +59,21 @@ func (m *multi) Next() (map[string]interface{}, error) {
 	}
 	// Each extractor is given its own channel so we can keep track of
 	// how many have not yet completed
-	chans := make([]chan payload, len(m.extractors))
+	chans := make([]chan response, len(m.extractors))
 	ctx, cancel := context.WithCancel(context.Background())
 	for i, extractor := range m.extractors {
-		channel := make(chan payload)
+		channel := make(chan response)
 		chans[i] = channel
 		e := extractor
 		// Starting the thread for each extractor
 		go func() {
+			defer func() {
+				close(channel)
+			}()
 			for {
-				defer func() {
-					close(channel)
-				}()
-				rtn, err := e.Next()
+				payload, err := e.Next()
 				select {
-				case channel <- payload{rtn, err}:
+				case channel <- response{payload, err}:
 					if err != nil {
 						return
 					}
@@ -90,7 +89,7 @@ func (m *multi) Next() (map[string]interface{}, error) {
 	for i, ch := range chans {
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
-	m.get = func() (map[string]interface{}, error) {
+	m.get = func() (*data.Payload, error) {
 		for {
 			// Once all of the channels are closed
 			if len(cases) == 0 {
@@ -104,12 +103,12 @@ func (m *multi) Next() (map[string]interface{}, error) {
 				cases = append(cases[:chosen], cases[chosen+1:]...)
 				continue
 			}
-			p := value.Interface().(payload)
-			if p.error != nil && p.error != io.EOF {
+			p := value.Interface().(response)
+			if p.err != nil && p.err != io.EOF {
 				// if we get a terminating error we should cancel all our goroutines
 				cancel()
 			}
-			return p.data, p.error
+			return p.payload, p.err
 		}
 	}
 	return m.get()
