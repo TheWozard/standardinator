@@ -4,85 +4,82 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+
+	"github.com/PaesslerAG/gval"
 )
 
 // XML creates an extractor for xml data
 type XML struct {
-	Elements XMLElementConfig
-	// Map of Elements to output
-	Output XMLOutputConfig
+	Config XMLOutputConfig
 
 	// DisableStrict if the default golang XML decoder strict option
 	DisableStrict bool
+	// Disables erroring on finding embedded HTML data
+	HTMLEscape bool
 }
 
-type XMLOutputConfig map[string]XMLOutput
+type XMLOutputConfig []*XMLOutput
 
 // XMLOutput defines how an output is formed the XML
 type XMLOutput struct {
-	IncludeInParent bool
-	Import          []string
-	SubConfig       XMLOutputConfig
+	Path    *Path
+	Name    string
+	Repeat  []*Path
+	Objects []*Path
+	// gval.Evaluable is an evaluate-able jsonpath created by jsonpath.New(path)
+	Import map[string]map[string]gval.Evaluable
 }
 
-type XMLElementConfig struct {
-	// Elements that are known to repeat inside of the element
-	Arrays []string
-	// Elements that are know to be objects and to not compress out #text if it exists
-	Objects []string
-
-	SubConfigs map[string]XMLElementConfig
+func (o *XMLOutput) GetName() string {
+	if o.Name != "" {
+		return o.Name
+	}
+	return o.Path.toString()
 }
 
-// New creates an Extractor that reads XML data from r
-func (c XML) New(reader io.Reader) Extractor {
+// New creates an Evaluator that reads XML data from r
+func (c XML) New(reader io.Reader) Evaluator {
 	decoder := xml.NewDecoder(reader)
 	decoder.Strict = !c.DisableStrict
-	return &xmlExtractor{
-		next:     decoder.Token,
-		elements: c.Elements,
-		output:   c.Output,
-		factory: OutputBuilderFactory{
-			Strict: !c.DisableStrict,
+	//TODO: HTML Escape
+	evaluations := map[string]*Evaluation{}
+	for _, output := range c.Config {
+		evaluations[output.GetName()] = &Evaluation{
+			Import: output.Import,
+		}
+	}
+	return &IntermediateEvaluator{
+		Extractor: &xmlExtractor{
+			next:   decoder.Token,
+			config: c.Config,
+			factory: OutputBuilderFactory{
+				Strict: !c.DisableStrict,
+			},
+			path: NewPath("$"),
 		},
+		Evaluations: evaluations,
 	}
 }
 
 // xmlExtractor reads tokens from a Token function of xml.Decoder
 // Uses the tokens and a stack of contexts to build output objects
 type xmlExtractor struct {
-	next     func() (xml.Token, error)
-	elements XMLElementConfig
-	output   XMLOutputConfig
-	factory  OutputBuilderFactory
+	next    func() (xml.Token, error)
+	config  XMLOutputConfig
+	factory OutputBuilderFactory
 
 	// current execution stack
 	context []xmlExtractorContext
-
-	// Used for entering namespace specific configs
-	subInstance *xmlExtractor
+	path    *Path
 }
 
 type xmlExtractorContext struct {
 	builder *OutputBuilder
-	config  XMLOutput
+	config  *XMLOutput
 	name    string
 }
 
-func (e *xmlExtractor) Next() (*OutputContext, error) {
-	// Evaluate any running subInstances
-	if e.subInstance != nil {
-		data, err := e.subInstance.Next()
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-		if data != nil {
-			return data, nil
-		}
-		// Release subInstance
-		e.subInstance = nil
-	}
-
+func (e *xmlExtractor) Next() (*IntermediateContext, error) {
 	// Token Processing
 	for {
 		token, err := e.next()
@@ -91,20 +88,12 @@ func (e *xmlExtractor) Next() (*OutputContext, error) {
 		}
 		switch typed := token.(type) {
 		case xml.StartElement:
+			e.path.Enter(typed.Name.Local)
 			// Do we need to open a new context for this data.
-			if config, ok := e.output[typed.Name.Local]; ok {
-				if config.SubConfig != nil {
-					e.subInstance = &xmlExtractor{
-						next: func() (xml.Token, error) {
-							// TODO: Wrapping this to get it back out
-							return e.next()
-						},
-						elements: ,
-					}
-				}
+			if config := e.getConfig(); config != nil {
 				builder := e.factory.New()
 				e.context = append(e.context, xmlExtractorContext{
-					name:    typed.Name.Local,
+					name:    config.GetName(),
 					config:  config,
 					builder: builder,
 				})
@@ -112,9 +101,9 @@ func (e *xmlExtractor) Next() (*OutputContext, error) {
 			if len(e.context) > 0 {
 				current := e.currentContext()
 				name := typed.Name.Local
-				if e.isArray(name) {
+				if e.isArray() {
 					current.builder.Array(name)
-				} else if e.isObject(name) {
+				} else if e.isObject() {
 					current.builder.Object(name)
 				} else {
 					current.builder.Namespace(name)
@@ -133,6 +122,7 @@ func (e *xmlExtractor) Next() (*OutputContext, error) {
 				}
 			}
 		case xml.EndElement:
+			e.path.Exit()
 			if len(e.context) > 0 {
 				current := e.currentContext()
 				err = current.builder.Close()
@@ -153,9 +143,9 @@ func (e *xmlExtractor) currentContext() xmlExtractorContext {
 }
 
 // isArray returns if the passed field is expected to be an array
-func (e *xmlExtractor) isArray(field string) bool {
-	for _, key := range e.elements.Arrays {
-		if field == key {
+func (e *xmlExtractor) isArray() bool {
+	for _, target := range e.currentContext().config.Repeat {
+		if e.path.Includes(target) {
 			return true
 		}
 	}
@@ -163,35 +153,35 @@ func (e *xmlExtractor) isArray(field string) bool {
 }
 
 // isObject returns if the passed field is expect to be an object
-func (e *xmlExtractor) isObject(field string) bool {
-	for _, key := range e.elements.Objects {
-		if field == key {
+func (e *xmlExtractor) isObject() bool {
+	for _, target := range e.currentContext().config.Objects {
+		if e.path.Includes(target) {
 			return true
 		}
 	}
 	return false
 }
 
-// Close closes the current context and outputs with the completed data.
-func (e *xmlExtractor) Close() (*OutputContext, error) {
-	var current xmlExtractorContext
-	e.context, current = e.context[:len(e.context)-1], e.context[len(e.context)-1]
-	if current.config.IncludeInParent {
-		var err error
-		if e.isArray(current.name) {
-			err = e.currentContext().builder.Merge(current.name, current.builder.Value())
-		} else {
-			err = e.currentContext().builder.Add(current.name, current.builder.Value())
-		}
-		if err != nil {
-			return nil, err
+// getConfig attempts to return the first XMLOutput that matches the current path returns nil otherwise
+func (e *xmlExtractor) getConfig() *XMLOutput {
+	for _, config := range e.config {
+		if e.path.Includes(config.Path) {
+			return config
 		}
 	}
+	return nil
+}
+
+// Close closes the current context and outputs with the completed data.
+func (e *xmlExtractor) Close() (*IntermediateContext, error) {
+	var current xmlExtractorContext
+	e.context, current = e.context[:len(e.context)-1], e.context[len(e.context)-1]
 	Related := map[string][]*OutputBuilder{}
+	// TODO: Children
 	for _, parent := range e.context {
 		Related[parent.name] = append(Related[parent.name], parent.builder)
 	}
-	return &OutputContext{
+	return &IntermediateContext{
 		Name:    current.name,
 		Data:    current.builder,
 		Related: Related,

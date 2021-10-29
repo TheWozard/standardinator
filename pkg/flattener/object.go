@@ -120,7 +120,7 @@ func (builder *OutputBuilder) Namespace(namespace string) {
 // To see if the object is completed call IsComplete after calling
 func (builder *OutputBuilder) Close() error {
 	if builder.IsComplete() {
-		return AlreadyCompletedObjectError
+		return ErrAlreadyCompleted
 	}
 	var target *collector
 	builder.stack, target = builder.stack[:len(builder.stack)-1], builder.stack[len(builder.stack)-1]

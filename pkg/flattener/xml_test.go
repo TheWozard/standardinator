@@ -15,99 +15,54 @@ func TestXMLExtractor(t *testing.T) {
 		name   string
 		input  string
 		config flattener.XML
-		output []map[string]interface{}
+		output []*flattener.Output
 	}{
 		{
 			name:   "Empty",
 			input:  ``,
 			config: flattener.XML{},
-			output: []map[string]interface{}{},
+			output: []*flattener.Output{},
 		},
 		{
-			name:   "NoMatch",
-			input:  `<data></data>`,
+			name:   "NoOutput",
+			input:  `<data><f1>A</f1><f2>B</f2><f3>C</f3></data>`,
 			config: flattener.XML{},
-			output: []map[string]interface{}{},
+			output: []*flattener.Output{},
 		},
 		{
-			name:   "EmptyObject",
-			input:  `<data></data>`,
-			config: flattener.XML{Output: flattener.XMLOutputConfig{"data": {}}},
-			output: []map[string]interface{}{{}},
-		},
-		{
-			name:   "ObjectWithData",
-			input:  `<data att="value">5<A att="foo">1</A><B>2</B><C></C></data>`,
-			config: flattener.XML{Output: flattener.XMLOutputConfig{"data": {}}},
-			output: []map[string]interface{}{
+			name:  "SingleOutput",
+			input: `<data><f1>A</f1><f2>B</f2><f3>C</f3></data>`,
+			config: flattener.XML{Config: flattener.XMLOutputConfig{
 				{
-					"@att":  "value",
-					"#text": "5",
-					"A": map[string]interface{}{
-						"@att":  "foo",
-						"#text": "1",
-					},
-					"B": "2",
-					"C": map[string]interface{}{},
+					Path: flattener.NewPath("data"),
 				},
+			}},
+			output: []*flattener.Output{
+				{Name: "data", Data: map[string]interface{}{"f1": "A", "f2": "B", "f3": "C"}},
 			},
 		},
 		{
-			name:   "MultiTargets",
-			input:  `<entities><data>A</data><data>B</data><data>C</data></entities>`,
-			config: flattener.XML{Output: flattener.XMLOutputConfig{"data": {}}},
-			output: []map[string]interface{}{
+			name:  "SingleDeepOutput",
+			input: `<data><correct><target att="1">A</target></correct><incorrect><target att="2">B</target></incorrect></data>`,
+			config: flattener.XML{Config: flattener.XMLOutputConfig{
 				{
-					"#text": "A",
+					Path: flattener.NewPath("correct.target"),
 				},
-				{
-					"#text": "B",
-				},
-				{
-					"#text": "C",
-				},
+			}},
+			output: []*flattener.Output{
+				{Name: "correct.target", Data: map[string]interface{}{"@att": "1", "#text": "A"}},
 			},
 		},
 		{
-			name:   "SplitTargets",
-			input:  `<entities><data>A</data></entities><entities><data>B</data></entities>`,
-			config: flattener.XML{Output: flattener.XMLOutputConfig{"data": {}}},
-			output: []map[string]interface{}{
+			name:  "SingleDeepOutput",
+			input: `<data><correct><target att="1">A</target></correct><incorrect><target att="2">B</target></incorrect></data>`,
+			config: flattener.XML{Config: flattener.XMLOutputConfig{
 				{
-					"#text": "A",
+					Path: flattener.NewPath("correct.target"),
 				},
-				{
-					"#text": "B",
-				},
-			},
-		},
-		{
-			name:   "RepeatElements",
-			input:  `<entities><data>A</data><data>B</data></entities>`,
-			config: flattener.XML{Output: flattener.XMLOutputConfig{"entities": {}}, Arrays: []string{"data"}},
-			output: []map[string]interface{}{
-				{
-					"data": []interface{}{
-						"A",
-						"B",
-					},
-				},
-			},
-		},
-		{
-			name:   "ChildOutput",
-			input:  `<entities><data>A</data><data>B</data><extra>data</extra></entities>`,
-			config: flattener.XML{Output: flattener.XMLOutputConfig{"entities": {}, "data": {}}, Arrays: []string{"data"}},
-			output: []map[string]interface{}{
-				{
-					"#text": "A",
-				},
-				{
-					"#text": "B",
-				},
-				{
-					"extra": "data",
-				},
+			}},
+			output: []*flattener.Output{
+				{Name: "correct.target", Data: map[string]interface{}{"@att": "1", "#text": "A"}},
 			},
 		},
 	}
@@ -118,7 +73,7 @@ func TestXMLExtractor(t *testing.T) {
 			for _, expected := range test.output {
 				actual, err := extractor.Next()
 				require.NoError(t, err)
-				require.Equal(t, expected, actual.Data)
+				require.Equal(t, expected, actual)
 			}
 			actual, err := extractor.Next()
 			require.Nil(t, actual, "Unexpected Extra Results")
